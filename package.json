@@ -1,0 +1,53 @@
+{
+	"name": "@subsetcss/vscode-autocomplete",
+	"description": "VSCode language server autocomplete for subsetcss config",
+	"author": "Ilya Radchenko",
+	"license": "MIT",
+	"version": "0.0.0",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/subsetcss/vscode-autocomplete"
+	},
+	"publisher": "vscode-samples",
+	"categories": [],
+	"keywords": [
+		"multi-root ready"
+	],
+	"engines": {
+		"vscode": "^1.23.0"
+	},
+	"activationEvents": [
+		"onLanguage:css",
+		"onLanguage:scss",
+		"onLanguage:less"
+	],
+	"main": "./client/out/extension",
+	"contributes": {
+		"configuration": {
+			"type": "object",
+			"title": "SubsetCSS",
+			"properties": {
+				"subsetcss.configPath": {
+					"scope": "window",
+					"type": "string",
+					"format": "uri",
+					"default": ".subsetcss.js",
+					"description": "The path to the SubsetCSS JavaScript configuration file that defines the values for each CSS property."
+				}
+			}
+		}
+	},
+	"scripts": {
+		"vscode:prepublish": "cd client && npm run update-vscode && cd .. && npm run compile",
+		"compile": "tsc -b",
+		"watch": "tsc -b -w",
+		"postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
+		"test": "sh ./scripts/e2e.sh"
+	},
+	"devDependencies": {
+		"@types/mocha": "^5.2.0",
+		"@types/node": "^8.0.0",
+		"tslint": "^5.16.0",
+		"typescript": "^3.5.1"
+	}
+}
