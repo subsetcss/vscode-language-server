@@ -19,13 +19,28 @@ import {
 	TextDocumentPositionParams,
 	InitializedParams
 } from 'vscode-languageserver';
+import * as postcss from 'postcss';
+import valueParser from 'postcss-value-parser';
 import * as path from 'path';
 import { URI } from 'vscode-uri';
-let subsetConfig: {
-	subsets: {
-		[key: string]: string[]
+
+let subsetConfig: SubsetConfig;
+
+interface SubsetConfig {
+	subsets: Subsets,
+	['@media']?: AtMediaConfig[]
+	[key: string]: any;
+}
+
+interface Subsets {
+	[key: string]: string[]
+}
+interface AtMediaConfig {
+	params?: {
+		'max-width'?: string[]
 	}
-};
+	subsets: Subsets;
+}
 
 
 // Create a connection for the server. The connection uses Node's IPC as a transport.
@@ -137,7 +152,7 @@ documents.onDidClose(e => {
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
 documents.onDidChangeContent(change => {
-	validateTextDocument(change.document);
+	// validateTextDocument(change.document);
 });
 
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
@@ -203,31 +218,71 @@ connection.onDidChangeWatchedFiles(async _change => {
 
 // This handler provides the initial list of the completion items.
 connection.onCompletion(
-	(_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
+	async (_textDocumentPosition: TextDocumentPositionParams): Promise<CompletionItem[]> => {
 		const document = documents.get(_textDocumentPosition.textDocument.uri);
 
 		if (document) {
-			let line = getLine(document, _textDocumentPosition.position.line);
+			let lineNumber = _textDocumentPosition.position.line;
+			let line = getLine(document, lineNumber);
 
 			if (!line) {
 				return [];
 			}
 
-			let trimmed = line.trim();
-			let split = trimmed.includes(':') ? trimmed.split(':')[0] : trimmed;
-			let value = split.trim();
-			let config = subsetConfig.subsets[value];
+			let text = document.getText();
+			let parsed = postcss.parse(text);
+		
+			let result = await new Promise((resolve) => {
+				parsed.walkRules((node) => {
+					if (!node.source) {
+						return;
+					}
 
-			if (config) {
-				return config.map((label: string, index: number) => {
-					return {
-						label,
-						kind: value.includes('color') ? CompletionItemKind.Color : CompletionItemKind.Value,
-						data: 0,
-						sortText: '0' + index
-					};
-				})
-			}
+					let startLine = node.source.start && node.source.start.line;
+					let endLine = node.source.end && node.source.end.line;
+
+					if (!startLine || !endLine) {
+						return;
+					}
+
+					if (lineNumber >= startLine && lineNumber <= endLine) {
+						node.walkDecls(decl => {
+							let rootConfig = getSubsetConfig(decl);
+							// TODO: make a func to handle configs, since they need matching
+							let config = rootConfig ? rootConfig.subsets[decl.prop] : [];
+
+							if (config) {
+								resolve(config.map((label: string, index: number) => {
+									return {
+										label,
+										kind: decl.prop.includes('color') ? CompletionItemKind.Color : CompletionItemKind.Value,
+										data: 0,
+										sortText: '0' + index
+									};
+								}));
+							}
+						});
+					}
+				});
+			});
+
+			return result as CompletionItem[];
+
+			// let trimmed = line.trim();
+			// let split = trimmed.includes(':') ? trimmed.split(':')[0] : trimmed;
+			// let value = split.trim();
+			// let config = subsetConfig.subsets[value];
+
+			// if (config) {
+			// 	return config.map((label: string, index: number) => {
+			// 		return {
+			// 			label,
+			// 			kind: value.includes('color') ? CompletionItemKind.Color : CompletionItemKind.Value,
+			// 			data: 0,
+			// 			sortText: '0' + index
+			// 		};
+			// 	})
+			// }
 		}
 
 		return [];
@@ -307,4 +362,46 @@ function getLineOffset(doc: TextDocument, line: number): number {
 
 function getLineStart(line: number): Position {
 	return Position.create(line, 0);
+}
+
+function getSubsetConfig(decl: postcss.Declaration) {
+	let grandParent = decl.parent.parent;
+	if (!grandParent || grandParent.type !== 'atrule') {
+		return subsetConfig;
+	}
+	let inAtRule = grandParent && grandParent.type === 'atrule';
+	let rootConfig = grandParent && inAtRule ? subsetConfig[`@${grandParent.name}`] : subsetConfig;
+
+	if (!Array.isArray(rootConfig)) {
+		return subsetConfig;
+	}
+
+	let { nodes } = valueParser(grandParent.params);
+        
+	if (nodes.length) {
+		let words: string[] = [];
+		nodes[0].nodes.forEach((node: ValueParserNode) => {
+			if (node.type === 'word') {
+				words.push(node.value);
+			}
+		});
+
+		if (words.length === 2) {
+			let [prop, value] = words;
+
+			let config = rootConfig.find(conf => {
+				let param = conf.params[prop];
+
+				return param && param.includes(value);
+			});
+
+			return config || subsetConfig;
+		}
+	}
+
+}
+
+interface ValueParserNode {
+  type: string;
+  value: string;
 }
