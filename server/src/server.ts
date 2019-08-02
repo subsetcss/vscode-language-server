@@ -271,7 +271,7 @@ function getPropConfig(config: string[], prop: string) {
 		return {
 			label,
 			kind: prop.includes('color') ? CompletionItemKind.Color : CompletionItemKind.Value,
-			data: 0,
+			data: index,
 			sortText: '0' + index
 		};
 	})
