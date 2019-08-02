@@ -51,13 +51,12 @@ let documents: TextDocuments = new TextDocuments();
 
 let hasConfigurationCapability: boolean = false;
 let hasWorkspaceFolderCapability: boolean = false;
-let hasDiagnosticRelatedInformationCapability: boolean = false;
 
-connection.onInitialize((params: InitializeParams) => {
+connection.onInitialize(async (params: InitializeParams) => {
 	// Initially load the config
-	// TODO: get the path from the stylelintrc config
+	let settings = await getDocumentSettings();
 	if (params.rootPath) {
-		subsetConfig = require(path.join(params.rootPath, '.subsetcss.js'));
+		subsetConfig = require(path.join(params.rootPath, settings.configPath));
 	}
 	let capabilities = params.capabilities;
 
@@ -68,11 +67,6 @@ connection.onInitialize((params: InitializeParams) => {
 	);
 	hasWorkspaceFolderCapability = !!(
 		capabilities.workspace && !!capabilities.workspace.workspaceFolders
-	);
-	hasDiagnosticRelatedInformationCapability = !!(
-		capabilities.textDocument &&
-		capabilities.textDocument.publishDiagnostics &&
-		capabilities.textDocument.publishDiagnostics.relatedInformation
 	);
 
 	return {
@@ -109,47 +103,19 @@ interface Settings {
 const defaultSettings: Settings = { configPath: '.subsetcss.js' };
 let globalSettings: Settings = defaultSettings;
 
-// Cache the settings of all open documents
-let documentSettings: Map<string, Thenable<Settings>> = new Map();
-
-connection.onDidChangeConfiguration(change => {
-	if (hasConfigurationCapability) {
-		// Reset all cached document settings
-		documentSettings.clear();
-	} else {
-		globalSettings = <Settings>(
-			(change.settings.subsetcss || defaultSettings)
-		);
-	}
-
-	// Revalidate all open text documents
-	documents.all().forEach(validateTextDocument);
-});
-
-function getDocumentSettings(resource: string): Thenable<Settings> {
+async function getDocumentSettings(): Promise<Settings> {
 	if (!hasConfigurationCapability) {
 		return Promise.resolve(globalSettings);
 	}
-	let result = documentSettings.get(resource);
-	if (!result) {
-		result = connection.workspace.getConfiguration({
-			scopeUri: resource,
-			section: 'subsetcss'
-		});
-		debugger;
-		documentSettings.set(resource, result);
-	}
-	return result;
+
+	return connection.workspace.getConfiguration({
+		section: 'subsetcss'
+	});
 }
 
-// Only keep settings for open documents
-documents.onDidClose(e => {
-	documentSettings.delete(e.document.uri);
-});
 
 connection.onDidChangeWatchedFiles(async _change => {
 	// Monitored files have change in VSCode
-	connection.console.log('We received an file change event');
 	try {
 		let document = _change.changes[0];
 		let p = uriToPath(document.uri);
