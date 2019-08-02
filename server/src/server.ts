@@ -9,8 +9,6 @@ import {
 	createConnection,
 	TextDocuments,
 	TextDocument,
-	Diagnostic,
-	DiagnosticSeverity,
 	ProposedFeatures,
 	InitializeParams,
 	DidChangeConfigurationNotification,
@@ -149,59 +147,6 @@ documents.onDidClose(e => {
 	documentSettings.delete(e.document.uri);
 });
 
-// The content of a text document has changed. This event is emitted
-// when the text document first opened or when its content has changed.
-documents.onDidChangeContent(change => {
-	// validateTextDocument(change.document);
-});
-
-async function validateTextDocument(textDocument: TextDocument): Promise<void> {
-	// In this simple example we get the settings for every validate run.
-	let _settings = await getDocumentSettings(textDocument.uri);
-
-	// // The validator creates diagnostics for all uppercase words length 2 and more
-	// let text = textDocument.getText();
-	// let pattern = /\b[A-Z]{2,}\b/g;
-	// let m: RegExpExecArray | null;
-
-	// let problems = 0;
-	// let diagnostics: Diagnostic[] = [];
-	// while ((m = pattern.exec(text)) && problems < settings.maxNumberOfProblems) {
-	// 	problems++;
-	// 	let diagnostic: Diagnostic = {
-	// 		severity: DiagnosticSeverity.Warning,
-	// 		range: {
-	// 			start: textDocument.positionAt(m.index),
-	// 			end: textDocument.positionAt(m.index + m[0].length)
-	// 		},
-	// 		message: `${m[0]} is all uppercase.`,
-	// 		source: 'ex'
-	// 	};
-	// 	if (hasDiagnosticRelatedInformationCapability) {
-	// 		diagnostic.relatedInformation = [
-	// 			{
-	// 				location: {
-	// 					uri: textDocument.uri,
-	// 					range: Object.assign({}, diagnostic.range)
-	// 				},
-	// 				message: 'Spelling matters'
-	// 			},
-	// 			{
-	// 				location: {
-	// 					uri: textDocument.uri,
-	// 					range: Object.assign({}, diagnostic.range)
-	// 				},
-	// 				message: 'Particularly for names'
-	// 			}
-	// 		];
-	// 	}
-	// 	diagnostics.push(diagnostic);
-	// }
-
-	// // Send the computed diagnostics to VSCode.
-	// connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
-}
-
 connection.onDidChangeWatchedFiles(async _change => {
 	// Monitored files have change in VSCode
 	connection.console.log('We received an file change event');
@@ -230,8 +175,22 @@ connection.onCompletion(
 			}
 
 			let text = document.getText();
-			let parsed = postcss.parse(text);
-		
+			let parsed: postcss.Root;
+
+			try {
+				parsed = postcss.parse(text);
+			} catch(e) {
+				// Simple fallback
+				let trimmed = line.trim();
+				let split = trimmed.includes(':') ? trimmed.split(':')[0] : trimmed;
+				let value = split.trim();
+				let config = subsetConfig.subsets[value];
+
+				if (config) {
+					return getPropConfig(config, value);
+				}
+			}
+
 			let result = await new Promise((resolve) => {
 				parsed.walkRules((node) => {
 					if (!node.source) {
@@ -248,18 +207,10 @@ connection.onCompletion(
 					if (lineNumber >= startLine && lineNumber <= endLine) {
 						node.walkDecls(decl => {
 							let rootConfig = getSubsetConfig(decl);
-							// TODO: make a func to handle configs, since they need matching
 							let config = rootConfig ? rootConfig.subsets[decl.prop] : [];
 
 							if (config) {
-								resolve(config.map((label: string, index: number) => {
-									return {
-										label,
-										kind: decl.prop.includes('color') ? CompletionItemKind.Color : CompletionItemKind.Value,
-										data: 0,
-										sortText: '0' + index
-									};
-								}));
+								resolve(getPropConfig(config, decl.prop));
 							}
 						});
 					}
@@ -267,62 +218,11 @@ connection.onCompletion(
 			});
 
 			return result as CompletionItem[];
-
-			// let trimmed = line.trim();
-			// let split = trimmed.includes(':') ? trimmed.split(':')[0] : trimmed;
-			// let value = split.trim();
-			// let config = subsetConfig.subsets[value];
-
-			// if (config) {
-			// 	return config.map((label: string, index: number) => {
-			// 		return {
-			// 			label,
-			// 			kind: value.includes('color') ? CompletionItemKind.Color : CompletionItemKind.Value,
-			// 			data: 0,
-			// 			sortText: '0' + index
-			// 		};
-			// 	})
-			// }
 		}
 
 		return [];
 	}
 );
-
-// This handler resolves additional information for the item selected in
-// the completion list.
-connection.onCompletionResolve(
-	(item: CompletionItem): CompletionItem => {
-		if (item.data === 1) {
-			item.detail = 'TypeScript details';
-			item.documentation = 'TypeScript documentation';
-		} else if (item.data === 2) {
-			item.detail = 'JavaScript details';
-			item.documentation = 'JavaScript documentation';
-		}
-		return item;
-	}
-);
-
-/*
-connection.onDidOpenTextDocument((params) => {
-	// A text document got opened in VSCode.
-	// params.uri uniquely identifies the document. For documents store on disk this is a file URI.
-	// params.text the initial full content of the document.
-	connection.console.log(`${params.textDocument.uri} opened.`);
-});
-connection.onDidChangeTextDocument((params) => {
-	// The content of a text document did change in VSCode.
-	// params.uri uniquely identifies the document.
-	// params.contentChanges describe the content changes to the document.
-	connection.console.log(`${params.textDocument.uri} changed: ${JSON.stringify(params.contentChanges)}`);
-});
-connection.onDidCloseTextDocument((params) => {
-	// A text document got closed in VSCode.
-	// params.uri uniquely identifies the document.
-	connection.console.log(`${params.textDocument.uri} closed.`);
-});
-*/
 
 // Make the text document manager listen on the connection
 // for open, change and close text document events
@@ -398,7 +298,17 @@ function getSubsetConfig(decl: postcss.Declaration) {
 			return config || subsetConfig;
 		}
 	}
+}
 
+function getPropConfig(config: string[], prop: string) {
+	return config.map((label: string, index: number) => {
+		return {
+			label,
+			kind: prop.includes('color') ? CompletionItemKind.Color : CompletionItemKind.Value,
+			data: 0,
+			sortText: '0' + index
+		};
+	})
 }
 
 interface ValueParserNode {
