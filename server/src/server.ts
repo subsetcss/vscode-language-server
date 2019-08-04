@@ -17,10 +17,11 @@ import {
 	TextDocumentPositionParams,
 	InitializedParams
 } from 'vscode-languageserver';
-import * as postcss from 'postcss';
 import valueParser from 'postcss-value-parser';
 import * as path from 'path';
 import { URI } from 'vscode-uri';
+import postcss from 'postcss';
+
 
 let subsetConfig: SubsetConfig;
 
@@ -118,6 +119,23 @@ connection.onDidChangeWatchedFiles(async _change => {
 	// Monitored files have change in VSCode
 	try {
 		let document = _change.changes[0];
+		
+		// bust require cache
+		try {
+			let settings = await getDocumentSettings();
+			if (document.uri.includes(settings.configPath)) {
+				let cacheKey = Object.keys(require.cache).find(key => {
+					return key.includes(settings.configPath);
+				});
+
+				if (cacheKey) {
+					console.log(`Clearing require cache for '${ cacheKey }`);
+					delete require.cache[cacheKey];
+				}
+			}
+		} catch(e) {
+			// noop
+		}
 		let p = uriToPath(document.uri);
 		if (p) {
 			subsetConfig = require(p);
@@ -155,6 +173,8 @@ connection.onCompletion(
 				if (config) {
 					return getPropConfig(config, value);
 				}
+
+				return [];
 			}
 
 			let result = await new Promise((resolve) => {
@@ -172,6 +192,9 @@ connection.onCompletion(
 
 					if (lineNumber >= startLine && lineNumber <= endLine) {
 						node.walkDecls(decl => {
+							if (!decl.source || !decl.source.start || decl.source.start.line !== lineNumber + 1) {
+								return resolve([]);
+							}
 							let rootConfig = getSubsetConfig(decl);
 							let config = rootConfig ? rootConfig.subsets[decl.prop] : [];
 
