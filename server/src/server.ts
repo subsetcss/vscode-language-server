@@ -193,7 +193,7 @@ connection.onCompletion(
 					if (lineNumber >= startLine && lineNumber <= endLine) {
 						node.walkDecls(decl => {
 							if (!decl.source || !decl.source.start || decl.source.start.line !== lineNumber + 1) {
-								return resolve([]);
+								return;
 							}
 							let rootConfig = getSubsetConfig(decl);
 							let config = rootConfig ? rootConfig.subsets[decl.prop] : [];
@@ -203,6 +203,7 @@ connection.onCompletion(
 							}
 						});
 					}
+					resolve([]);
 				});
 			});
 
