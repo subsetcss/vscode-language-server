@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@subsetcss/parser@^0.0.1":
-  version "0.0.1"
-  resolved "https://registry.yarnpkg.com/@subsetcss/parser/-/parser-0.0.1.tgz#bf4b8a853767050a3b67ff037f05cf122291a81b"
-  integrity sha512-aUt/3akYWads+BnJtIDLXJCWJQMhhQSJpjrdaWnhPeLOeov/l+SO5DF0wEft6eFO8MEdg2eB706gigSkx6oepQ==
+"@subsetcss/parser@^0.0.2":
+  version "0.0.2"
+  resolved "https://registry.yarnpkg.com/@subsetcss/parser/-/parser-0.0.2.tgz#d4f89fbacd7c8825613f7cc240e4ff7af365e1aa"
+  integrity sha512-grnbX3XHeHJ4FGMN4FI1f1mUHLFyeeRCgoz2KKF6JlwKRmGxA9d5H3kQBN5/3bLTwbIV8+Ydh0I2hFTU+5KRlw==
   dependencies:
     postcss "^7.0.17"
     postcss-value-parser "^4.0.2"

@@ -159,16 +159,13 @@ connection.onCompletion(
 			}
 
 			let text = document.getText();
-			let result: {
-				config: string[],
-				decl: postcss.Declaration
-			};
 
 			try {
-				result = (await parser(subsetConfig, text, lineNumber) as typeof result);
-				if (result) {
+				let result = await parser(subsetConfig, text, lineNumber);
+				if (result && result.decl) {
 					return getPropConfig(result.config, result.decl.prop);
 				}
+				return [];
 			} catch(e) {
 				// Simple fallback
 				let trimmed = line.trim();
