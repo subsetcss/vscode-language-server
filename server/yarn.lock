@@ -2,6 +2,14 @@
 # yarn lockfile v1
 
 
+"@subsetcss/parser@^0.0.1":
+  version "0.0.1"
+  resolved "https://registry.yarnpkg.com/@subsetcss/parser/-/parser-0.0.1.tgz#bf4b8a853767050a3b67ff037f05cf122291a81b"
+  integrity sha512-aUt/3akYWads+BnJtIDLXJCWJQMhhQSJpjrdaWnhPeLOeov/l+SO5DF0wEft6eFO8MEdg2eB706gigSkx6oepQ==
+  dependencies:
+    postcss "^7.0.17"
+    postcss-value-parser "^4.0.2"
+
 ansi-styles@^3.2.1:
   version "3.2.1"
   resolved "https://registry.yarnpkg.com/ansi-styles/-/ansi-styles-3.2.1.tgz#41fbb20243e50b12be0f04b8dedbf07520ce841d"
@@ -51,6 +59,11 @@ postcss-value-parser@^4.0.0:
   version "4.0.0"
   resolved "https://registry.yarnpkg.com/postcss-value-parser/-/postcss-value-parser-4.0.0.tgz#99a983d365f7b2ad8d0f9b8c3094926eab4b936d"
   integrity sha512-ESPktioptiSUchCKgggAkzdmkgzKfmp0EU8jXH+5kbIUB+unr0Y4CY9SRMvibuvYUBjNh1ACLbxqYNpdTQOteQ==
+
+postcss-value-parser@^4.0.2:
+  version "4.0.2"
+  resolved "https://registry.yarnpkg.com/postcss-value-parser/-/postcss-value-parser-4.0.2.tgz#482282c09a42706d1fc9a069b73f44ec08391dc9"
+  integrity sha512-LmeoohTpp/K4UiyQCwuGWlONxXamGzCMtFxLq4W1nZVGIQLYvMCJx3yAF9qyyuFpflABI9yVdtJAqbihOsCsJQ==
 
 postcss@^7.0.0, postcss@^7.0.17:
   version "7.0.17"

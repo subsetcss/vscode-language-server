@@ -51,6 +51,5 @@
 		"typescript": "^3.5.1"
 	},
 	"dependencies": {
-		"postcss-scss": "^2.0.0"
 	}
 }

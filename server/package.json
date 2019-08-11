@@ -12,6 +12,7 @@
 		"url": "https://github.com/Microsoft/vscode-extension-samples"
 	},
 	"dependencies": {
+		"@subsetcss/parser": "^0.0.1",
 		"postcss": "^7.0.17",
 		"postcss-scss": "^2.0.0",
 		"postcss-value-parser": "^4.0.0",
