@@ -19,11 +19,14 @@ import {
 } from 'vscode-languageserver';
 import * as path from 'path';
 import { URI } from 'vscode-uri';
-import postcss from 'postcss';
+//import postcss from 'postcss';
 import { parser } from '@subsetcss/parser';
 
 
 let subsetConfig: SubsetConfig;
+let workspaceSubsetConfigs: {
+	[key: string]: SubsetConfig
+} = {};
 
 interface SubsetConfig {
 	subsets: Subsets,
@@ -56,8 +59,28 @@ let hasWorkspaceFolderCapability: boolean = false;
 connection.onInitialize(async (params: InitializeParams) => {
 	// Initially load the config
 	let settings = await getDocumentSettings();
-	if (params.rootPath) {
-		subsetConfig = require(path.join(params.rootPath, settings.configPath));
+	
+	if (params.workspaceFolders) {
+		params.workspaceFolders.forEach(folder => {
+			let configPath = uriToPath(path.join(folder.uri, settings.configPath));
+
+			if (!configPath) {
+				return;
+			}
+
+			try {
+				let config = require(configPath);
+				workspaceSubsetConfigs[uriToPath(folder.uri) || ''] = config;
+			} catch(e) {
+				// connection.console.log(`${folder.name} doesn't have a ${settings.configPath} at ${configPath} (${e.message}), ignoring workspace.`);
+			}
+		});
+	} else if (params.rootPath) {
+		try {
+			subsetConfig = require(path.join(params.rootPath, settings.configPath));
+		} catch(e) {
+			connection.console.log(e.message);
+		}
 	}
 	let capabilities = params.capabilities;
 
@@ -80,6 +103,16 @@ connection.onInitialize(async (params: InitializeParams) => {
 		}
 	};
 });
+
+function getConfig(fileUri: string) {
+	let filePath = uriToPath(fileUri) || '';
+	connection.console.log(filePath + '');
+	connection.console.log(JSON.stringify(workspaceSubsetConfigs));
+	let workspaceURIs = Object.keys(workspaceSubsetConfigs);
+	let uri = workspaceURIs.find(uri => filePath.includes(uri));
+	connection.console.log(uri + '');
+	return uri ? workspaceSubsetConfigs[uri] : subsetConfig;
+}
 
 connection.onInitialized((_params: InitializedParams) => {
 	if (hasConfigurationCapability) {
@@ -113,7 +146,6 @@ async function getDocumentSettings(): Promise<Settings> {
 		section: 'subsetcss'
 	});
 }
-
 
 connection.onDidChangeWatchedFiles(async _change => {
 	// Monitored files have change in VSCode
@@ -149,6 +181,8 @@ connection.onDidChangeWatchedFiles(async _change => {
 connection.onCompletion(
 	async (_textDocumentPosition: TextDocumentPositionParams): Promise<CompletionItem[]> => {
 		const document = documents.get(_textDocumentPosition.textDocument.uri);
+		const workspaceConfig = getConfig(_textDocumentPosition.textDocument.uri);
+		connection.console.log(JSON.stringify(workspaceConfig));
 
 		if (document) {
 			let lineNumber = _textDocumentPosition.position.line;
@@ -161,7 +195,7 @@ connection.onCompletion(
 			let text = document.getText();
 
 			try {
-				let result = await parser(subsetConfig, text, lineNumber);
+				let result = await parser(workspaceConfig, text, lineNumber);
 				if (result && result.decl) {
 					return getPropConfig(result.config, result.decl.prop);
 				}
@@ -171,7 +205,7 @@ connection.onCompletion(
 				let trimmed = line.trim();
 				let split = trimmed.includes(':') ? trimmed.split(':')[0] : trimmed;
 				let value = split.trim();
-				let config = subsetConfig.subsets[value];
+				let config = workspaceConfig.subsets[value];
 
 				if (config) {
 					return getPropConfig(config, value);
