@@ -1,5 +1,5 @@
 {
-	"name": "@subsetcss/vscode-autocomplete",
+	"name": "subsetcss-vscode",
 	"description": "VSCode language server autocomplete for subsetcss config",
 	"author": "Ilya Radchenko",
 	"license": "MIT",
@@ -8,7 +8,7 @@
 		"type": "git",
 		"url": "https://github.com/subsetcss/vscode-autocomplete"
 	},
-	"publisher": "vscode-samples",
+	"publisher": "knownasilya",
 	"categories": [],
 	"keywords": [
 		"multi-root ready"
