@@ -109,7 +109,7 @@ function getConfig(fileUri: string) {
 	connection.console.log(filePath + '');
 	connection.console.log(JSON.stringify(workspaceSubsetConfigs));
 	let workspaceURIs = Object.keys(workspaceSubsetConfigs);
-	let uri = workspaceURIs.find(uri => filePath.includes(uriToPath(uri) || ''));
+	let uri = workspaceURIs.find(uri => filePath.includes(uri));
 	connection.console.log(uri + '');
 	return uri ? workspaceSubsetConfigs[uri] : subsetConfig;
 }
